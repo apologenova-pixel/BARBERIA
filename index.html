@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elite Barber Pro - Cloud Sync</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --p: #0f172a; --a: #fbbf24; --s: #10b981; --d: #e11d48; --bg: #f8fafc; --c: #ffffff; --t: #1e293b; --sh: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        * { box-sizing: border-box; transition: all 0.2s ease; font-family: 'Inter', sans-serif; }
+        body { background: var(--bg); margin: 0; color: var(--t); }
+        
+        /* Navbar */
+        nav { background: var(--p); padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 65px; border-bottom: 3px solid var(--a); position: sticky; top:0; z-index: 1000; }
+        .nav-brand { color: white; font-size: 20px; font-weight: 900; }
+        .nav-brand span { color: var(--a); }
+        
+        .tab-btn { background: none; color: #94a3b8; border: none; padding: 20px; cursor: pointer; font-weight: 700; font-size: 11px; text-transform: uppercase; }
+        .tab-btn.active { color: var(--a); box-shadow: inset 0 -3px 0 var(--a); }
+        .hidden { display: none !important; }
+
+        .container { max-width: 1300px; margin: 20px auto; padding: 0 20px; }
+        .main-grid { display: grid; grid-template-columns: 300px 1fr 300px; gap: 20px; }
+        
+        /* Cards */
+        .card { background: var(--c); border-radius: 12px; border: 1px solid #e2e8f0; margin-bottom: 20px; overflow: visible; box-shadow: var(--sh); position: relative; }
+        .card-h { padding: 12px 15px; background: #fff; border-bottom: 1px solid #f1f5f9; font-weight: 800; font-size: 10px; color: #64748b; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
+        .card-b { padding: 15px; }
+
+        /* Elementos de Lista y Dropdowns */
+        .barber-item { background: #fff; border-radius: 10px; padding: 12px; margin-bottom: 8px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; position: relative; }
+        .barber-item.busy { border-left: 4px solid var(--d); background: #fff1f2; }
+        .barber-item.activo { border-left: 4px solid var(--s); }
+        .barber-item.descanso { border-left: 4px solid var(--a); background: #fffbeb; }
+        
+        .drop-wrap { position: relative; }
+        .drop-btn { background: #f1f5f9; border: none; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; color: #64748b; }
+        .drop-menu { position: absolute; right: 0; top: 35px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); display: none; z-index: 100; width: 160px; overflow: hidden; }
+        .drop-menu button { width: 100%; padding: 10px; border: none; background: none; text-align: left; font-size: 11px; font-weight: 600; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+        .drop-menu button:hover { background: #f8fafc; }
+        .show { display: block !important; }
+
+        .next-tag { background: var(--a); color: var(--p); font-size: 8px; padding: 2px 5px; border-radius: 4px; font-weight: 900; animation: blink 1.5s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* Botones */
+        .btn { padding: 10px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 11px; width: 100%; }
+        .btn-p { background: var(--p); color: white; }
+        .btn-a { background: var(--a); color: var(--p); }
+        .btn-s { background: var(--s); color: white; }
+        .btn-d { background: var(--d); color: white; }
+
+        /* Sillas */
+        .silla-card { background: white; border-radius: 12px; padding: 15px; border: 1px solid #e2e8f0; text-align: center; box-shadow: var(--sh); border-top: 4px solid var(--p); }
+        .timer-box { font-family: monospace; font-size: 18px; color: var(--d); font-weight: 800; margin: 8px 0; }
+
+        /* Modales */
+        .modal { position:fixed; inset:0; background:rgba(15, 23, 42, 0.9); display:none; align-items:center; justify-content:center; z-index:2000; backdrop-filter: blur(4px); }
+        input, select { width: 100%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 8px; font-size: 13px; }
+        
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+        .resumen-box { background: #f8fafc; padding: 10px; border-radius: 8px; margin-bottom: 5px; font-size: 13px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <div class="card" style="width: 300px; margin: 100px auto;">
+        <div class="card-b" style="text-align: center;">
+            <h2 style="color:var(--p); margin: 0 0 20px 0;">ELITE<span>BARBER</span></h2>
+            <input id="userLogin" placeholder="Usuario">
+            <input id="passLogin" type="password" placeholder="Clave">
+            <button onclick="app.login()" class="btn btn-p">ENTRAR</button>
+        </div>
+    </div>
+</div>
+
+<div id="app-content" class="hidden">
+    <nav>
+        <div class="nav-brand">ELITE<span>BARBER</span></div>
+        <div style="display:flex">
+            <button class="tab-btn active" onclick="app.tab('atencion', this)">Panel</button>
+            <button class="tab-btn" onclick="app.tab('caja', this)">Caja</button>
+            <button id="nav-admin" class="tab-btn hidden" onclick="app.tab('config', this)">Admin</button>
+            <button class="tab-btn" onclick="location.reload()" style="color:var(--d)"><i class="fas fa-power-off"></i></button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div id="t-atencion" class="main-grid">
+            <aside>
+                <div class="card"><div class="card-h">Barberos en Turno</div><div id="listB" class="card-b"></div></div>
+                <div class="card"><div class="card-h">Ingresar a Turno</div><div id="entryB" class="card-b" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px"></div></div>
+            </aside>
+            <main>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+                    <h3 style="margin:0">Atención Activa</h3>
+                    <button onclick="app.next()" class="btn btn-a" style="width:auto; padding: 8px 15px;">PRÓXIMO CLIENTE <i class="fas fa-chevron-right"></i></button>
+                </div>
+                <div id="sillas" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:15px"></div>
+            </main>
+            <aside>
+                <div class="card"><div class="card-h">Registro de Cliente</div>
+                    <div class="card-b">
+                        <input id="inN" placeholder="Nombre">
+                        <select id="inS" onchange="app.price()"></select>
+                        <input id="inP" type="number" placeholder="Precio CLP">
+                        <select id="inT"></select>
+                        <button onclick="app.reg()" class="btn btn-p">PONER EN COLA</button>
+                    </div>
+                </div>
+                <div class="card"><div class="card-h">Cola de Espera (<span id="wait">0</span>)</div><div id="cola" class="card-b"></div></div>
+            </aside>
+        </div>
+
+        <div id="t-caja" class="hidden">
+            <div style="display:grid; grid-template-columns: 1fr 350px; gap:20px">
+                <div class="card"><div class="card-h">Comisiones Acumuladas</div><div id="ranking" class="card-b"></div></div>
+                <aside>
+                    <div class="card" style="background:var(--p); color:white"><div class="card-b">
+                        <button onclick="app.openM('mGasto')" class="btn btn-d">REGISTRAR GASTO</button>
+                        <button onclick="app.initCierre()" class="btn btn-s" style="margin-top:8px">CIERRE DE CAJA</button>
+                    </div></div>
+                    <div class="card">
+                        <div class="card-h">
+                            Ventas Hoy 
+                            <input type="text" id="cajaSearch" onkeyup="app.renderCaja()" placeholder="🔍 Buscar..." style="width:120px; margin:0; padding:4px;">
+                        </div>
+                        <div id="movs" class="card-b" style="max-height:400px; overflow-y:auto"></div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <div id="t-config" class="hidden">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px">
+                <div class="card"><div class="card-h">Barberos Base</div><div id="bList" class="card-b"></div><div class="card-b"><input id="nb" placeholder="Nombre"><input id="nc" type="number" placeholder="%"><button onclick="app.addB()" class="btn btn-p">Añadir</button></div></div>
+                <div class="card"><div class="card-h">Servicios</div><div id="sList" class="card-b"></div><div class="card-b"><input id="ns" placeholder="Servicio"><input id="nsp" type="number" placeholder="$"><button onclick="app.addS()" class="btn btn-p">Añadir</button></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="mGasto" class="modal"><div class="card" style="width:300px"><div class="card-h">Gasto</div><div class="card-b"><input id="gd" placeholder="Motivo"><input id="ga" type="number" placeholder="$"><button onclick="app.regGasto()" class="btn btn-d">GUARDAR</button><button onclick="app.closeM()" class="btn" style="margin-top:5px">Cerrar</button></div></div></div>
+
+<div id="mInputCierre" class="modal"><div class="card" style="width:380px"><div class="card-h">Cierre de Caja</div>
+    <div class="card-b">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px">
+            <div><label>💵 Efectivo</label><input id="cFisico" type="number" value="0"></div>
+            <div><label>💳 Tarjeta</label><input id="cTarjeta" type="number" value="0"></div>
+            <div><label>📱 Transfe</label><input id="cTransfe" type="number" value="0"></div>
+            <div><label>🎟️ Voucher</label><input id="cVoucher" type="number" value="0"></div>
+        </div>
+        <button onclick="app.procesarCierre()" class="btn btn-p" style="margin-top:10px">VER BALANCE</button>
+        <button onclick="app.closeM()" class="btn" style="margin-top:5px">Cancelar</button>
+    </div>
+</div></div>
+
+<div id="mResumenCierre" class="modal"><div class="card" style="width:400px"><div class="card-h">Balance de Auditoría</div><div id="resumenComparativo" class="card-b"></div><div class="card-b" style="display:flex; gap:10px"><button onclick="app.confirmarFinal()" class="btn btn-s" style="flex:1">CERRAR DÍA</button><button onclick="app.closeM()" class="btn btn-d" style="flex:1">VOLVER</button></div></div></div>
+
+<div id="mPago" class="modal"><div class="card" style="width:320px"><div class="card-b" style="text-align:center">
+    <h2 id="pTitle" style="margin-top:0"></h2>
+    <input id="pVal" type="number" style="font-size:22px; text-align:center; color:var(--s); font-weight:800">
+    <select id="pMetodo">
+        <option value="EFECTIVO">💵 Efectivo</option>
+        <option value="TARJETA">💳 Tarjeta</option>
+        <option value="TRANSFERENCIA">📱 Transferencia</option>
+        <option value="VOUCHER">🎟️ Voucher</option>
+    </select>
+    <button onclick="app.pay()" class="btn btn-s">FINALIZAR COBRO</button>
+</div></div></div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // Configuración de tu base de datos en la nube
+    const firebaseConfig = {
+      apiKey: "AIzaSyD_JVR7IFFXEFEZxol_-GwKZ2jwF5lN9mI",
+      authDomain: "barberia-99e38.firebaseapp.com",
+      databaseURL: "https://barberia-99e38-default-rtdb.firebaseio.com",
+      projectId: "barberia-99e38",
+      storageBucket: "barberia-99e38.firebasestorage.app",
+      messagingSenderId: "545000330214",
+      appId: "1:545000330214:web:51ce54aa0c399627a77c27"
+    };
+
+    const fbApp = initializeApp(firebaseConfig);
+    const db = getDatabase(fbApp);
+    const r = ref(db, 'barber_data');
+
+    const fmt = (v) => new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(v);
+
+    window.app = {
+        data: { users: { admin: {pass:"1234", role:"admin"}, cajero: {pass:"5678", role:"user"} }, barberos: [], servicios: [], espera: [], activos: [], hoy: [], turnos: [], historial: [], estadosBarberos: {} },
+        
+        save() { set(r, this.data); },
+        
+        init() { 
+            onValue(r, (s) => { if(s.val()){ this.data = {...this.data, ...s.val()}; this.render(); this.renderCaja(); } });
+            setInterval(() => this.updateTimers(), 1000);
+            window.onclick = (e) => { if (!e.target.closest('.drop-wrap')) document.querySelectorAll('.drop-menu').forEach(m => m.classList.remove('show')); };
+        },
+
+        login() {
+            const user = document.getElementById('userLogin').value, pass = document.getElementById('passLogin').value;
+            if(this.data.users[user]?.pass === pass) {
+                this.u = { id: user, ...this.data.users[user] };
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-content').classList.remove('hidden');
+                if(this.u.role === 'admin') document.getElementById('nav-admin').classList.remove('hidden');
+                this.init();
+            } else alert("Credenciales incorrectas");
+        },
+
+        tab(t, btn) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+            ['t-atencion', 't-caja', 't-config'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+            document.getElementById(`t-${t}`).classList.remove('hidden');
+        },
+
+        toggleDrop(id) { 
+            const menu = document.getElementById(id);
+            const isShown = menu.classList.contains('show');
+            document.querySelectorAll('.drop-menu').forEach(m => m.classList.remove('show')); 
+            if(!isShown) menu.classList.add('show');
+        },
+
+        cambiarEstado(n, est) {
+            if(!this.data.estadosBarberos) this.data.estadosBarberos = {};
+            if(est === 'fuera') {
+                this.data.turnos = this.data.turnos.filter(b => b !== n);
+                delete this.data.estadosBarberos[n];
+            } else { this.data.estadosBarberos[n] = est; }
+            this.save();
+        },
+
+        forzarAsignacion(idxCola, nombreBarbero) {
+            const cliente = this.data.espera.splice(idxCola, 1)[0];
+            this.data.activos.push({ ...cliente, barber: nombreBarbero, startTime: Date.now() });
+            this.save();
+        },
+
+        render() {
+            const busy = (this.data.activos || []).map(a => a.barber);
+            const ests = this.data.estadosBarberos || {};
+            const free = (this.data.turnos || []).filter(b => !busy.includes(b) && (ests[b] === 'activo' || !ests[b]));
+            const nextB = free[0];
+
+            // Render Barberos
+            document.getElementById('listB').innerHTML = (this.data.turnos || []).map((n, i) => {
+                const e = ests[n] || 'activo'; const bsy = busy.includes(n);
+                return `
+                <div class="barber-item ${bsy?'busy':e}">
+                    <div><b style="font-size:13px">${n}</b><br>${n === nextB && !bsy ? '<span class="next-tag">SIGUIENTE</span>' : `<small style="font-size:9px">${bsy?'TRABAJANDO':e.toUpperCase()}</small>`}</div>
+                    <div class="drop-wrap">
+                        <button class="drop-btn" onclick="app.toggleDrop('drop-b-${i}')"><i class="fas fa-cog"></i></button>
+                        <div id="drop-b-${i}" class="drop-menu">
+                            ${!bsy ? `<button onclick="app.cambiarEstado('${n}','activo')">🟢 Activo</button><button onclick="app.cambiarEstado('${n}','descanso')">🟡 Descanso</button>` : ''}
+                            <button onclick="app.cambiarEstado('${n}','fuera')" style="color:var(--d)">🔴 Salir</button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            // Render Cola con Engranaje
+            document.getElementById('cola').innerHTML = (this.data.espera || []).map((c, i) => `
+                <div class="barber-item" style="border-left:3px solid var(--p)">
+                    <div style="flex:1"><b style="font-size:12px">${c.name}</b><br><small style="font-size:9px">${c.target==='any'?'Cualquiera':c.target}</small></div>
+                    <div class="drop-wrap">
+                        <button class="drop-btn" onclick="app.toggleDrop('drop-c-${i}')"><i class="fas fa-cog"></i></button>
+                        <div id="drop-c-${i}" class="drop-menu">
+                            <div style="padding:5px; font-size:9px; color:#94a3b8">ASIGNAR A:</div>
+                            ${free.map(b => `<button onclick="app.forzarAsignacion(${i}, '${b}')">🪑 ${b}</button>`).join('')}
+                            <button onclick="app.delE(${i})" style="color:var(--d)">❌ Quitar</button>
+                        </div>
+                    </div>
+                </div>`).join('');
+
+            document.getElementById('entryB').innerHTML = (this.data.barberos || []).filter(b => !(this.data.turnos || []).includes(b.n)).map(b => `<button onclick="app.inB('${b.n}')" class="btn btn-p" style="padding:6px; font-size:10px">${b.n}</button>`).join('');
+            document.getElementById('sillas').innerHTML = (this.data.activos || []).map((a, i) => `<div class="silla-card"><small>${a.barber}</small><h4>${a.name}</h4><div class="timer-box" id="timer-${i}">00:00</div><button onclick="app.prepP(${i})" class="btn btn-s">FINALIZAR</button></div>`).join('');
+            document.getElementById('wait').innerText = (this.data.espera || []).length;
+            document.getElementById('inS').innerHTML = (this.data.servicios || []).map(s => `<option value="${s.n}">${s.n}</option>`).join('');
+            document.getElementById('inT').innerHTML = '<option value="any">Cualquiera</option>' + (this.data.barberos || []).filter(b => (this.data.turnos || []).includes(b.n)).map(b => `<option value="${b.n}">${b.n}</option>`).join('');
+            
+            if(this.u?.role === 'admin') {
+                document.getElementById('bList').innerHTML = (this.data.barberos || []).map((b,i) => `<div class="item-row">${b.n} (${b.c}%) <button onclick="app.delB(${i})">×</button></div>`).join('');
+                document.getElementById('sList').innerHTML = (this.data.servicios || []).map((s,i) => `<div class="item-row">${s.n} (${fmt(s.p)}) <button onclick="app.delS(${i})">×</button></div>`).join('');
+            }
+        },
+
+        renderCaja() {
+            const h = this.data.hoy || [];
+            const search = document.getElementById('cajaSearch')?.value.toLowerCase() || "";
+            const rk = {}; h.filter(m=>!m.type).forEach(m => { if(!rk[m.barber]) rk[m.barber] = { p: 0 }; rk[m.barber].p += Math.round(m.price * (m.com / 100)); });
+            document.getElementById('ranking').innerHTML = Object.entries(rk).map(([n, d]) => `<div class="item-row"><b>${n}</b> <b style="color:var(--s)">${fmt(d.p)}</b></div>`).join('');
+            
+            const filtered = h.filter(m => (m.name||"").toLowerCase().includes(search) || (m.barber||"").toLowerCase().includes(search));
+            document.getElementById('movs').innerHTML = filtered.map(m => `<div class="item-row" style="border-left:3px solid ${m.type?'var(--d)':'var(--s)'}"><span>${m.name} <small>(${m.method||'G'})</small></span> <b>${fmt(m.price)}</b></div>`).reverse().join('');
+        },
+
+        procesarCierre() {
+            const h = this.data.hoy || [];
+            const inputE = parseInt(document.getElementById('cFisico').value) || 0;
+            const inputT = parseInt(document.getElementById('cTarjeta').value) || 0;
+            const inputTr = parseInt(document.getElementById('cTransfe').value) || 0;
+            const inputV = parseInt(document.getElementById('cVoucher').value) || 0;
+            const totalFisico = inputE + inputT + inputTr + inputV;
+            const totalVentas = h.filter(m => !m.type).reduce((a,b)=>a+b.price, 0);
+            const totalGastos = h.filter(m => m.type === 'GASTO').reduce((a,b)=>a+b.price, 0);
+            const real = { EFECTIVO: 0, TARJETA: 0, TRANSFERENCIA: 0, VOUCHER: 0 };
+            h.filter(m => !m.type).forEach(m => real[m.method] += m.price);
+            
+            const diffE = inputE - (real.EFECTIVO - totalGastos);
+            const diffTotal = totalFisico - (totalVentas - totalGastos);
+
+            document.getElementById('resumenComparativo').innerHTML = `
+                <div class="resumen-box"><span>Ventas Brutas:</span> <b>${fmt(totalVentas)}</b></div>
+                <div class="resumen-box"><span>Gastos:</span> <b style="color:var(--d)">-${fmt(totalGastos)}</b></div>
+                <hr>
+                <div class="resumen-box" style="font-size:11px"><span>Dif. Efectivo:</span> <b style="${diffE<0?'color:var(--d)':''}">${fmt(diffE)}</b></div>
+                <div class="resumen-box" style="background:${diffTotal<0?'#fff1f2':'#f0fdf4'}; font-weight:bold"><span>BALANCE TOTAL:</span> <b>${fmt(diffTotal)}</b></div>
+            `;
+            this.tmpC = { diff: diffTotal, fecha: new Date().toLocaleString(), totalVentas };
+            this.closeM(); this.openM('mResumenCierre');
+        },
+
+        pay() {
+            const item = this.data.activos.splice(this.tmpI, 1)[0];
+            const bData = this.data.barberos.find(b => b.n === item.barber);
+            this.data.hoy.push({ ...item, price: parseInt(document.getElementById('pVal').value), com: bData?.c || 50, method: document.getElementById('pMetodo').value });
+            this.data.turnos = this.data.turnos.filter(b => b !== item.barber); this.data.turnos.push(item.barber);
+            this.closeM(); this.save();
+        },
+
+        confirmarFinal() { this.data.historial = this.data.historial || []; this.data.historial.push(this.tmpC); this.data.hoy = []; this.save(); this.closeM(); alert("Día cerrado y guardado."); },
+        updateTimers() { if(!this.data.activos) return; this.data.activos.forEach((a, i) => { const el = document.getElementById(`timer-${i}`); if(el) { const d = Math.floor((Date.now() - a.startTime)/1000); el.innerText = `${Math.floor(d/60)}:${(d%60).toString().padStart(2,'0')}`; } }); },
+        reg() { const n = document.getElementById('inN').value, p = document.getElementById('inP').value, t = document.getElementById('inT').value; if(n && p){ this.data.espera.push({ id: Date.now(), name: n, price: parseInt(p), target: t }); document.getElementById('inN').value = ""; this.save(); } },
+        regGasto() { const d = document.getElementById('gd').value, p = parseInt(document.getElementById('ga').value); if(d && p) { this.data.hoy.push({ type: 'GASTO', name: d, price: p }); this.closeM(); this.save(); } },
+        next() {
+            const busy = (this.data.activos || []).map(a => a.barber);
+            const ests = this.data.estadosBarberos || {};
+            const free = (this.data.turnos || []).filter(b => !busy.includes(b) && (ests[b] === 'activo' || !ests[b]));
+            if(!free.length || !this.data.espera.length) return;
+            const idx = this.data.espera.findIndex(c => c.target === 'any' || free.includes(c.target));
+            if(idx === -1) return;
+            const c = this.data.espera.splice(idx, 1)[0];
+            this.data.activos.push({ ...c, barber: c.target === 'any' ? free[0] : c.target, startTime: Date.now() });
+            this.save();
+        },
+        openM(id) { document.getElementById(id).style.display = 'flex'; },
+        closeM() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); },
+        addB() { const n=document.getElementById('nb').value, c=document.getElementById('nc').value; if(n&&c){this.data.barberos.push({n, c:parseInt(c)}); this.save(); }},
+        addS() { const n=document.getElementById('ns').value, p=document.getElementById('nsp').value; if(n&&p){this.data.servicios.push({n,p:parseInt(p)}); this.save(); }},
+        price() { const s = this.data.servicios.find(x => x.n === document.getElementById('inS').value); if(s) document.getElementById('inP').value = s.p; },
+        prepP(i) { this.tmpI = i; document.getElementById('pTitle').innerText = this.data.activos[i].name; document.getElementById('pVal').value = this.data.activos[i].price; this.openM('mPago'); },
+        inB(n) { this.data.turnos = this.data.turnos || []; this.data.turnos.push(n); this.save(); },
+        delE(i) { this.data.espera.splice(i,1); this.save(); },
+        delB(i) { this.data.barberos.splice(i,1); this.save(); },
+        delS(i) { this.data.servicios.splice(i,1); this.save(); },
+        initCierre() { this.openM('mInputCierre'); }
+    };
+    app.init();
+</script>
+</body>
+</html>
