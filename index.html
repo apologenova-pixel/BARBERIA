@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elite Barber Pro v60.4 - Premium</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --p: #111827; --a: #fbbf24; --s: #059669; --d: #dc2626; --bg: #f3f4f6; --c: #ffffff; --t: #1f2937; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--t); margin: 0; }
+        
+        /* Nav Estilizada */
+        nav { background: var(--p); padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 75px; border-bottom: 4px solid var(--a); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .nav-brand { color: white; font-size: 24px; font-weight: 900; letter-spacing: -1px; }
+        .nav-brand span { color: var(--a); }
+        .tab-btn { background: none; color: #9ca3af; border: none; padding: 25px 20px; cursor: pointer; font-weight: 700; font-size: 13px; text-transform: uppercase; transition: 0.3s; }
+        .tab-btn.active { color: var(--a); background: rgba(255,255,255,0.05); box-shadow: inset 0 -4px 0 var(--a); }
+
+        .container { max-width: 1500px; margin: 30px auto; padding: 0 25px; }
+        .main-grid { display: grid; grid-template-columns: 320px 1fr 320px; gap: 30px; }
+
+        /* Cards Modernas */
+        .card { background: var(--c); border-radius: 16px; border: 1px solid #e5e7eb; margin-bottom: 25px; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .card-h { padding: 18px 20px; background: #f9fafb; border-bottom: 1px solid #f3f4f6; font-weight: 800; font-size: 14px; text-transform: uppercase; color: var(--p); display: flex; justify-content: space-between; }
+        .card-b { padding: 20px; }
+
+        /* Items de Barberos y Espera */
+        .item-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #fff; border-radius: 12px; margin-bottom: 10px; border: 1px solid #f3f4f6; transition: 0.2s; }
+        .item-row:hover { border-color: var(--a); transform: translateY(-2px); }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        
+        /* Badges */
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+        .badge-any { background: #e0f2fe; color: #0369a1; }
+        .badge-spec { background: #fef3c7; color: #92400e; }
+
+        .btn { padding: 14px; border-radius: 10px; border: none; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; font-size: 13px; transition: 0.3s; }
+        .btn-p { background: var(--p); color: white; }
+        .btn-a { background: var(--a); color: var(--p); }
+        .btn-s { background: var(--s); color: white; }
+        .btn-d { background: var(--d); color: white; }
+        .btn:hover { opacity: 0.9; transform: scale(1.02); }
+
+        input, select { width: 100%; padding: 12px; border: 2px solid #f3f4f6; border-radius: 10px; margin-bottom: 15px; font-size: 14px; outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--a); }
+        
+        .hidden { display: none; }
+        .modal { position:fixed; inset:0; background:rgba(17, 24, 39, 0.8); display:none; align-items:center; justify-content:center; z-index:2000; backdrop-filter: blur(4px); }
+        
+        .silla-card { background: white; border-radius: 20px; padding: 25px; border: 1px solid #e5e7eb; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="nav-brand">ELITE<span>BARBER</span> <small style="font-size:12px; opacity:0.5">v60.4</small></div>
+    <div style="display:flex">
+        <button class="tab-btn active" onclick="app.tab('atencion', this)">Atención</button>
+        <button class="tab-btn" onclick="app.tab('caja', this)">Caja Pro</button>
+        <button class="tab-btn" onclick="app.tab('config', this)">Ajustes</button>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div id="t-atencion" class="main-grid">
+        <aside>
+            <div class="card"><div class="card-h">Barberos en Turno</div>
+                <div id="listaBarberos" class="card-b"></div>
+            </div>
+            <div class="card"><div class="card-h">Entrada de Personal</div>
+                <div id="btnEntradas" class="card-b" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px"></div>
+            </div>
+        </aside>
+
+        <main>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px">
+                <h2 style="margin:0; font-weight:900">Sillas Activas</h2>
+                <button onclick="app.next()" class="btn btn-a" style="width:auto; padding: 12px 30px">ATENDER SIGUIENTE <i class="fas fa-play"></i></button>
+            </div>
+            <div id="sillas" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap:20px"></div>
+        </main>
+
+        <aside>
+            <div class="card" style="border-top: 5px solid var(--a)"><div class="card-h">Recepción</div>
+                <div class="card-b">
+                    <input id="inName" placeholder="Nombre Cliente">
+                    <select id="inServ" onchange="app.upPrice()"></select>
+                    <input id="inPrice" type="number" placeholder="Precio $">
+                    <select id="inTarget"></select>
+                    <button onclick="app.reg()" class="btn btn-p">AGREGAR A COLA</button>
+                </div>
+            </div>
+            <div class="card"><div class="card-h">En Espera (<span id="waitCount">0</span>)</div>
+                <div id="cola" class="card-b"></div>
+            </div>
+        </aside>
+    </div>
+
+    <div id="t-caja" class="hidden">
+        <div style="display:grid; grid-template-columns: 1fr 380px; gap:30px">
+            <div>
+                <div class="card">
+                    <div class="card-h">Filtro por Rango</div>
+                    <div class="card-b" style="display:flex; gap:15px; background:#f9fafb">
+                        <input type="date" id="dS" style="margin:0">
+                        <input type="date" id="dE" style="margin:0">
+                        <button onclick="app.renderCaja()" class="btn btn-p" style="width:auto">CONSULTAR</button>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px">
+                    <div class="card"><div class="card-h">Top Desempeño</div><div id="ranking" class="card-b"></div></div>
+                    <div class="card"><div class="card-h">Movimientos</div><div id="movimientos" class="card-b" style="max-height:400px; overflow-y:auto"></div></div>
+                </div>
+            </div>
+            
+            <aside>
+                <div class="card" style="background:var(--p); color:white; border:none">
+                    <div class="card-b">
+                        <h3 style="color:var(--a); margin-top:0">CONTABILIDAD</h3>
+                        <div style="font-size:14px; opacity:0.7">Bruto Servicios</div>
+                        <div id="resV" style="font-size:24px; font-weight:900; margin-bottom:15px">$0</div>
+                        <div style="font-size:14px; opacity:0.7">Gastos Totales</div>
+                        <div id="resG" style="font-size:24px; font-weight:900; margin-bottom:15px; color:var(--d)">$0</div>
+                        <hr style="opacity:0.1">
+                        <div style="font-size:14px; color:var(--a)">BALANCE NETO</div>
+                        <div id="resN" style="font-size:36px; font-weight:900; color:var(--a)">$0</div>
+                        
+                        <button onclick="app.openModal('mGasto')" class="btn btn-d" style="margin-top:30px">AÑADIR GASTO</button>
+                        <button onclick="app.preCierre()" class="btn btn-s" style="margin-top:10px">CERRAR DÍA</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <div id="t-config" class="hidden">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:30px">
+            <div class="card"><div class="card-h">Configurar Personal</div><div id="editB" class="card-b"></div>
+                <div class="card-b" style="background:#f9fafb"><input id="newBN" placeholder="Nombre"><input id="newBC" type="number" placeholder="% Comis."><button onclick="app.addB()" class="btn btn-p">GUARDAR</button></div>
+            </div>
+            <div class="card"><div class="card-h">Configurar Servicios</div><div id="editS" class="card-b"></div>
+                <div class="card-b" style="background:#f9fafb"><input id="newSN" placeholder="Nombre Serv."><input id="newSP" type="number" placeholder="Precio $"><button onclick="app.addS()" class="btn btn-p">GUARDAR</button></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="mBarbero" class="modal"><div class="card" style="width:320px"><div class="card-h" id="mtB"></div><div id="maB" class="card-b"></div></div></div>
+<div id="mGasto" class="modal"><div class="card" style="width:300px"><div class="card-h">Nuevo Gasto</div><div class="card-b"><input id="gd" placeholder="Concepto"><input id="ga" type="number" placeholder="Monto $"><button onclick="app.regGasto()" class="btn btn-d">REGISTRAR</button><button onclick="app.closeM()" class="btn" style="background:none; color:var(--p)">Cerrar</button></div></div></div>
+<div id="mPago" class="modal"><div class="card" style="width:350px"><div class="card-h">Finalizar Cobro</div><div class="card-b" style="text-align:center"><h2 id="pt" style="margin-top:0"></h2><input id="pv" type="number" style="font-size:32px; text-align:center; color:var(--s); font-weight:900"><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px"><button onclick="app.pagar('Efectivo')" class="btn btn-s">EFECTIVO</button><button onclick="app.pagar('Tarjeta')" class="btn btn-p">TARJETA</button></div></div></div></div>
+
+<script>
+const app = {
+    db: JSON.parse(localStorage.getItem('barber_v60_4')) || {
+        barberos: [{n:'Oscar', c:50}], servicios: [{n:'Corte', p:10000}],
+        espera: [], activos: [], hoy: [], turnos: [], status: {}, cierres: []
+    },
+
+    save() { localStorage.setItem('barber_v60_4', JSON.stringify(this.db)); this.render(); },
+
+    init() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dS').value = today;
+        document.getElementById('dE').value = today;
+        this.render();
+    },
+
+    tab(t, b) {
+        document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active')); b.classList.add('active');
+        ['t-atencion', 't-caja', 't-config'].forEach(id => document.getElementById(id).classList.add('hidden'));
+        document.getElementById(`t-${t}`).classList.remove('hidden');
+        if(t === 'caja') this.renderCaja();
+    },
+
+    openModal(id) { document.getElementById(id).style.display = 'flex'; },
+    closeM() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); },
+
+    // --- LOGICA ATENCION ---
+    mB(n) {
+        this.tmpB = n; const s = this.db.status[n];
+        document.getElementById('mtB').innerText = n;
+        document.getElementById('maB').innerHTML = `
+            <button onclick="app.setS('${s==='Descanso'?'Activo':'Descanso'}')" class="btn btn-a" style="margin-bottom:12px">${s==='Descanso'?'REANUDAR TRABAJO':'PONER EN DESCANSO'}</button>
+            <button onclick="app.setS('Salida')" class="btn btn-d">MARCAR SALIDA</button>
+            <button onclick="app.closeM()" class="btn" style="margin-top:10px; background:none">CANCELAR</button>
+        `;
+        this.openModal('mBarbero');
+    },
+
+    setS(s) {
+        if(s === 'Salida') {
+            if(this.db.activos.find(a => a.barber === this.tmpB)) return alert("El barbero aún está atendiendo");
+            this.db.turnos = this.db.turnos.filter(x => x !== this.tmpB);
+            delete this.db.status[this.tmpB];
+        } else this.db.status[this.tmpB] = s;
+        this.closeM(); this.save();
+    },
+
+    reg() {
+        const n = document.getElementById('inName').value, p = document.getElementById('inPrice').value;
+        if(!n || !p) return;
+        this.db.espera.push({ id: Date.now(), name: n, price: parseInt(p), serv: document.getElementById('inServ').value, target: document.getElementById('inTarget').value });
+        document.getElementById('inName').value = ""; this.save();
+    },
+
+    next() {
+        const busy = this.db.activos.map(a => a.barber);
+        const free = this.db.turnos.filter(n => !busy.includes(n) && this.db.status[n] === 'Activo');
+        if(!free.length || !this.db.espera.length) return alert("No hay personal disponible o clientes");
+        const idx = this.db.espera.findIndex(c => c.target === 'any' || free.includes(c.target));
+        if(idx === -1) return alert("Barbero preferido está ocupado");
+        const c = this.db.espera.splice(idx,1)[0];
+        const b = c.target === 'any' ? free[0] : c.target;
+        this.db.activos.push({ ...c, barber: b });
+        this.save();
+    },
+
+    cobrar(i) {
+        this.tmpI = i; const a = this.db.activos[i];
+        document.getElementById('pt').innerText = a.name;
+        document.getElementById('pv').value = a.price;
+        this.openModal('mPago');
+    },
+
+    pagar(m) {
+        const item = this.db.activos.splice(this.tmpI, 1)[0];
+        this.db.hoy.push({ ...item, price: parseInt(document.getElementById('pv').value), method: m, t: Date.now() });
+        this.db.turnos = this.db.turnos.filter(x => x !== item.barber);
+        this.db.turnos.push(item.barber); // Rotación
+        this.closeM(); this.save();
+    },
+
+    // --- LOGICA CAJA ---
+    renderCaja() {
+        const dS = new Date(document.getElementById('dS').value).getTime();
+        const dE = new Date(document.getElementById('dE').value).setHours(23,59,59);
+        
+        // Unificar histórico y hoy para filtrar por rango
+        const fullData = [...this.db.cierres.flatMap(c => c.detalle), ...this.db.hoy];
+        const fil = fullData.filter(x => x.t >= dS && x.t <= dE);
+
+        const stats = {};
+        fil.filter(x => x.barber).forEach(x => stats[x.barber] = (stats[x.barber] || 0) + x.price);
+        
+        // Ranking ordenado
+        const ranking = Object.entries(stats).sort((a,b) => b[1] - a[1]);
+        document.getElementById('ranking').innerHTML = ranking.map(([b, v]) => `
+            <div class="item-row"><span><b>${b}</b></span> <span style="color:var(--s); font-weight:900">$${v}</span></div>
+        `).join('') || 'Sin ventas en este rango';
+
+        document.getElementById('movimientos').innerHTML = fil.map(m => `
+            <div style="font-size:12px; padding:8px; border-bottom:1px solid #eee; display:flex; justify-content:space-between">
+                <span>${m.type==='GASTO'?'🔴':'🟢'} ${m.serv||m.desc}</span>
+                <b>$${m.price}</b>
+            </div>`).join('');
+
+        const v = fil.filter(x => x.barber).reduce((s,x)=>s+x.price,0);
+        const g = fil.filter(x => x.type === 'GASTO').reduce((s,x)=>s+x.price,0);
+        document.getElementById('resV').innerText = `$${v}`;
+        document.getElementById('resG').innerText = `$${g}`;
+        document.getElementById('resN').innerText = `$${v-g}`;
+    },
+
+    regGasto() {
+        const d = document.getElementById('gd').value, a = document.getElementById('ga').value;
+        if(d && a) { this.db.hoy.push({ type: 'GASTO', desc: d, price: parseInt(a), t: Date.now() }); this.closeM(); this.save(); }
+    },
+
+    preCierre() {
+        if(confirm("¿Deseas cerrar el día? Esto moverá las ventas de hoy al histórico.")) {
+            const cierre = { f: new Date().toLocaleDateString(), t: Date.now(), detalle: [...this.db.hoy] };
+            this.db.cierres.push(cierre);
+            this.db.hoy = [];
+            this.save();
+            alert("Cierre completado.");
+        }
+    },
+
+    // --- RENDER UI ---
+    render() {
+        const busy = this.db.activos.map(a => a.barber);
+        
+        document.getElementById('listaBarberos').innerHTML = this.db.turnos.map(n => `
+            <div onclick="app.mB('${n}')" class="item-row">
+                <div>
+                    <span class="status-dot" style="background:${busy.includes(n)?'var(--d)':(this.db.status[n]==='Descanso'?'#9ca3af':'var(--s)')}"></span>
+                    <b>${n}</b>
+                </div>
+                <small style="opacity:0.6">${busy.includes(n)?'OCUPADO':this.db.status[n]}</small>
+            </div>`).join('') || 'Sin personal activo';
+
+        document.getElementById('btnEntradas').innerHTML = this.db.barberos.filter(b => !this.db.turnos.includes(b.n)).map(b => `
+            <button onclick="app.db.turnos.push('${b.n}'); app.db.status['${b.n}']='Activo'; app.save()" class="btn btn-p" style="padding:10px">${b.n}</button>`).join('');
+
+        document.getElementById('sillas').innerHTML = this.db.activos.map((a,i) => `
+            <div class="silla-card">
+                <div style="font-size:11px; color:var(--a); font-weight:800; margin-bottom:5px">${a.barber}</div>
+                <h3 style="margin:0 0 15px 0">${a.name}</h3>
+                <button onclick="app.cobrar(${i})" class="btn btn-s">FINALIZAR</button>
+            </div>`).join('');
+
+        document.getElementById('waitCount').innerText = this.db.espera.length;
+        document.getElementById('cola').innerHTML = this.db.espera.map(c => `
+            <div class="item-row">
+                <div><b>${c.name}</b><br><small>${c.serv}</small></div>
+                <span class="badge ${c.target==='any'?'badge-any':'badge-spec'}">${c.target==='any'?'Cualquiera':c.target}</span>
+            </div>`).join('');
+
+        document.getElementById('inServ').innerHTML = this.db.servicios.map(s => `<option value="${s.n}">${s.n}</option>`).join('');
+        document.getElementById('inTarget').innerHTML = '<option value="any">Cualquiera</option>' + this.db.barbers.map(b => `<option value="${b.n}">${b.n}</option>`).join('');
+        
+        document.getElementById('editB').innerHTML = this.db.barberos.map((b,i) => `<div class="item-row">${b.n} (${b.c}%) <i onclick="app.db.barberos.splice(${i},1);app.save()" class="fas fa-trash" style="color:var(--d); cursor:pointer"></i></div>`).join('');
+        document.getElementById('editS').innerHTML = this.db.servicios.map((s,i) => `<div class="item-row">${s.n} ($${s.p}) <i onclick="app.db.servicios.splice(${i},1);app.save()" class="fas fa-trash" style="color:var(--d); cursor:pointer"></i></div>`).join('');
+    },
+    upPrice() { const s = this.db.servicios.find(x => x.n === document.getElementById('inServ').value); if(s) document.getElementById('inPrice').value = s.p; },
+    addB() { const n=document.getElementById('newBN').value, c=document.getElementById('newBC').value; if(n&&c){this.db.barberos.push({n,c:parseInt(c)});this.save();}},
+    addS() { const n=document.getElementById('newSN').value, p=document.getElementById('newSP').value; if(n&&p){this.db.servicios.push({n,p:parseInt(p)});this.save();}}
+};
+app.init();
+</script>
+</body>
+</html>
