@@ -1,0 +1,217 @@
+/*
+ * ══════════════════════════════════════════════════════════════
+ *  FABIOLA GESTIÓN PRO — Estilos Personalizados
+ *  Sistema de Peluquería & Estética · Tecno Jump
+ * ══════════════════════════════════════════════════════════════
+ *
+ *  NOTA DE PRODUCCIÓN:
+ *  Este archivo contiene únicamente los estilos PERSONALIZADOS.
+ *  Los utilitarios de Tailwind CSS se gestionan por separado:
+ *
+ *  ┌─ DESARROLLO ──────────────────────────────────────────────┐
+ *  │  Tailwind se carga via CDN (@tailwindcss/browser@4).     │
+ *  │  No requiere compilación. Referenciado en index.html.    │
+ *  └───────────────────────────────────────────────────────────┘
+ *
+ *  ┌─ PRODUCCIÓN (cómo compilar con Tailwind CLI) ─────────────┐
+ *  │  1. npm install -D tailwindcss                            │
+ *  │  2. npx tailwindcss -i ./styles.css -o ./dist/output.css  │
+ *  │     --content "./index.html" --minify                     │
+ *  │  3. En index.html reemplazar la línea del CDN por:        │
+ *  │     <link rel="stylesheet" href="./dist/output.css">      │
+ *  │  4. Eliminar el script de @tailwindcss/browser del HTML   │
+ *  └───────────────────────────────────────────────────────────┘
+ *
+ *  Ver también: tailwind.config.js, package.json
+ */
+
+/* ── Directivas Tailwind (solo activas con CLI, ignoradas por CDN) ── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ══════════════════════════════════════════════════════════════
+   §A  VARIABLES CSS GLOBALES
+══════════════════════════════════════════════════════════════ */
+:root {
+  --verde: #16a34a;
+  --bg:    #f8fafc;
+  --dark:  #0f172a;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background:  var(--bg);
+  color:       #1e293b;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   §B  TARJETAS DE BARBERO (estados de cola)
+══════════════════════════════════════════════════════════════ */
+.barber-busy  { border-left: 4px solid #ef4444 !important; background: #fef2f2 !important; }
+.barber-libre { border-left: 4px solid #16a34a !important; background: #f0fdf4 !important; }
+.barber-pausa { border-left: 4px solid #f59e0b !important; background: #fffbeb !important; opacity: .85; }
+
+.tab-btn.active { color: #16a34a; border-bottom: 3px solid #16a34a; }
+
+/* ══════════════════════════════════════════════════════════════
+   §C  PRÓXIMO BARBERO (animación de pulso verde)
+══════════════════════════════════════════════════════════════ */
+.proximo-glow {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  color: #fff;
+  animation: pGlow 2s ease-in-out infinite;
+  position: relative;
+}
+
+@keyframes pGlow {
+  0%,100% { box-shadow: 0 0 0 0   rgba(22,163,74,.5); }
+  50%      { box-shadow: 0 0 0 10px rgba(22,163,74,0);  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   §D  REPOSO Y BADGES
+══════════════════════════════════════════════════════════════ */
+.reposo-card {
+  border-left: 4px solid #8b5cf6 !important;
+  background:  linear-gradient(135deg, #f5f3ff, #ede9fe) !important;
+}
+
+.badge-reposo  { background: #8b5cf6; color: #fff; font-size: 8px;  font-weight: 900; padding: 2px 7px;  border-radius: 999px; }
+.badge-pend    { background: #f59e0b; color: #fff; font-size: 8px;  font-weight: 900; padding: 2px 7px;  border-radius: 999px; }
+.badge-cobrado { background: #16a34a; color: #fff; font-size: 8px;  font-weight: 900; padding: 2px 7px;  border-radius: 999px; }
+
+/* ══════════════════════════════════════════════════════════════
+   §E  TIMERS DE ATENCIÓN
+══════════════════════════════════════════════════════════════ */
+.timer        { font-family: 'JetBrains Mono', monospace; font-size: 1.2rem; font-weight: 800; color: #16a34a; }
+.timer-purple { color: #8b5cf6 !important; }
+
+/* ══════════════════════════════════════════════════════════════
+   §F  FOTOS Y AVATARES
+══════════════════════════════════════════════════════════════ */
+.av48 {
+  width: 48px; height: 48px; border-radius: 50%;
+  object-fit: cover; border: 2px solid #e2e8f0; flex-shrink: 0;
+}
+.av64 {
+  width: 64px; height: 64px; border-radius: 50%;
+  object-fit: cover; border: 3px solid #16a34a;
+}
+.av-ph {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: #f1f5f9; display: flex; align-items: center;
+  justify-content: center; font-size: 18px; font-weight: 900;
+  color: #94a3b8; border: 2px solid #e2e8f0; flex-shrink: 0;
+}
+.upload-zone {
+  border: 2px dashed #cbd5e1; border-radius: 12px;
+  padding: 10px; cursor: pointer; text-align: center; transition: all .2s;
+}
+.upload-zone:hover { border-color: #16a34a; background: #f0fdf4; }
+
+/* ══════════════════════════════════════════════════════════════
+   §G  OVERLAYS DE SEGURIDAD
+══════════════════════════════════════════════════════════════ */
+#lockOverlay {
+  display: none; position: fixed; inset: 0; z-index: 99999;
+  background: #0f172a;
+  flex-direction: column; align-items: center; justify-content: center;
+}
+#lockOverlay.active { display: flex; }
+
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+
+#integrityAlert {
+  display: none; position: fixed; inset: 0; z-index: 99998;
+  background: #7f1d1d;
+  flex-direction: column; align-items: center; justify-content: center;
+}
+#integrityAlert.active { display: flex; }
+
+/* ══════════════════════════════════════════════════════════════
+   §H  TABLA DE AUDITORÍA (diff de cierre de caja)
+══════════════════════════════════════════════════════════════ */
+.diff-neg  { background: #fef2f2; color: #dc2626; }
+.diff-pos  { background: #f0fdf4; color: #16a34a; }
+.diff-zero { background: #f8fafc; color: #64748b; }
+
+/* ══════════════════════════════════════════════════════════════
+   §I  NAVEGACIÓN — TABS CON SCROLL HORIZONTAL (móvil)
+══════════════════════════════════════════════════════════════ */
+.nav-tabs-scroll {
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.nav-tabs-scroll::-webkit-scrollbar { display: none; }
+.nav-tabs-scroll .tab-btn { display: inline-flex; align-items: center; }
+
+/* ══════════════════════════════════════════════════════════════
+   §J  CLIENTE PENDIENTE DE PAGO (estado de animación)
+══════════════════════════════════════════════════════════════ */
+.card-pendiente-pago {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7) !important;
+  border: 2px solid #f59e0b !important;
+  animation: pulsePago 2s ease-in-out infinite;
+}
+
+@keyframes pulsePago {
+  0%,100% { box-shadow: 0 0 0 0    rgba(245,158,11,.4); }
+  50%     { box-shadow: 0 0 0 10px rgba(245,158,11,0);  }
+}
+
+.badge-por-pagar {
+  background:    linear-gradient(135deg, #f59e0b, #d97706);
+  color:         #fff;
+  font-size:     9px;
+  font-weight:   900;
+  padding:       3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  display:       inline-block;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   §K  ESTADÍSTICAS — BARRAS DE PROGRESO
+══════════════════════════════════════════════════════════════ */
+.stat-bar-wrap {
+  background:    #f1f5f9;
+  border-radius: 999px;
+  height:        10px;
+  overflow:      hidden;
+}
+.stat-bar-fill {
+  height:        100%;
+  border-radius: 999px;
+  background:    linear-gradient(90deg, #16a34a, #22c55e);
+  transition:    width .6s cubic-bezier(.4,0,.2,1);
+}
+.stat-bar-fill.gold { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.stat-bar-fill.blue { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+
+/* ══════════════════════════════════════════════════════════════
+   §L  FILTROS DE PERÍODO ACTIVO
+══════════════════════════════════════════════════════════════ */
+.periodo-btn { transition: all .15s; }
+.periodo-btn.active {
+  background:  #0f172a !important;
+  color:       #fff !important;
+  box-shadow:  0 2px 8px rgba(0,0,0,.15);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   §M  RESPONSIVE — BOTONES TÁCTILES GRANDES EN MÓVIL
+══════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+  main           { padding: 12px !important; }
+  .tab-btn       { min-height: 44px; }
+  button         { min-height: 40px; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   §N  UTILIDADES DE IMPRESIÓN
+══════════════════════════════════════════════════════════════ */
+@media print { .no-print { display: none !important; } }
