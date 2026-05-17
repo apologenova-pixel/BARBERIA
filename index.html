@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fabiola Gestión Pro v4</title>
+
+  <!-- ════════════════════════════════════════════════════════
+       ESTILOS
+       ════════════════════════════════════════════════════════
+       DESARROLLO: Tailwind via CDN (compila en el navegador).
+       PRODUCCIÓN: Reemplazar las 2 líneas de Tailwind por:
+         <link rel="stylesheet" href="./dist/output.css">
+       Ver: package.json → "npm run build"
+       ════════════════════════════════════════════════════════ -->
+
+  <!-- Tailwind CSS v4 — CDN (desarrollo). Para producción: npm run build -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <!--
+    ═══════════════════════════════════════════════════════════
+    TAILWIND v4 — TEMA Y UTILIDADES PERSONALIZADAS
+    La directiva @theme genera automáticamente utilidades:
+      bg-verde, text-dark, text-app-bg, text-nano, text-xxs,
+      text-micro, text-mini, animate-blink, animate-glow-verde
+    La directiva @layer utilities registra estados de barbero
+    sin !important, respetando la cascada de Tailwind v4.
+    ═══════════════════════════════════════════════════════════
+  -->
+  <style type="text/tailwindcss">
+    /* ── Tokens de diseño → utilidades automáticas ── */
+    @theme {
+      /* Paleta de marca */
+      --color-verde:        #16a34a;
+      --color-verde-light:  #22c55e;
+      --color-dark:         #0f172a;
+      --color-app-bg:       #f8fafc;
+      --color-purple-brand: #8b5cf6;
+      --color-amber-brand:  #f59e0b;
+
+      /* Escala tipográfica micro (UI de gestión densa) */
+      --font-size-nano:  0.5rem;      /* 8px  → text-nano  */
+      --font-size-xxs:   0.5625rem;   /* 9px  → text-xxs   */
+      --font-size-micro: 0.625rem;    /* 10px → text-micro */
+      --font-size-mini:  0.6875rem;   /* 11px → text-mini  */
+
+      /* Animaciones del sistema */
+      --animate-blink:       blink 1.5s step-start infinite;
+      --animate-glow-verde:  pGlow 2s ease-in-out infinite;
+      --animate-pulse-pago:  pulsePago 2s ease-in-out infinite;
+    }
+
+    /* ── Utilidades de estado de barbero (sin !important) ── */
+    @layer utilities {
+      /* Estados de cola */
+      .barber-busy  { border-left: 4px solid #ef4444; background-color: #fef2f2; }
+      .barber-libre { border-left: 4px solid #16a34a; background-color: #f0fdf4; }
+      .barber-pausa { border-left: 4px solid #f59e0b; background-color: #fffbeb; opacity: .85; }
+      .reposo-card  { border-left: 4px solid #8b5cf6; background-image: linear-gradient(135deg, #f5f3ff, #ede9fe); }
+
+      /* Estado activo de tabs de navegación */
+      .tab-btn.active {
+        color: #16a34a;
+        border-bottom: 3px solid #16a34a;
+      }
+
+      /* Filtros de período en estadísticas */
+      .periodo-btn { transition: all .15s ease; }
+      .periodo-btn.active {
+        background-color: #0f172a;
+        color: #fff;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+      }
+
+      /* Timer en color morado (barbero en reposo) */
+      .timer-purple { color: #8b5cf6; }
+    }
+  </style>
+
+  <!-- Estilos personalizados -->
+  <link rel="stylesheet" href="styles.css">
+  <!-- Íconos -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!--
+    ══════════════════════════════════════════════════════════════
+    FIREBASE SDK v9 (compat — funciona sin bundler ni npm)
+    ORDEN ESTRICTO: app-compat → firestore-compat → config.js
+    Los tres cargan de forma SÍNCRONA para que db esté disponible
+    cuando app.js arranque con defer.
+    ══════════════════════════════════════════════════════════════
+  -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="config.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     §A  OVERLAYS DE SEGURIDAD
+══════════════════════════════════════════════════════════════ -->
+<div id="lockOverlay">
+  <!-- Estilos gestionados por .lock-* en styles.css — sin inline styles -->
+  <i class="fas fa-shield-alt lock-icon"></i>
+  <p class="lock-title">⚠ Acceso Bloqueado</p>
+  <p id="lockCountdown" class="lock-countdown">05:00</p>
+  <p class="lock-brand">Sistema Fabiola · Tecno Jump</p>
+</div>
+
+<div id="integrityAlert">
+  <!-- Estilos gestionados por .integrity-* en styles.css — sin inline styles -->
+  <i class="fas fa-database integrity-icon"></i>
+  <p class="integrity-title">⛔ Integridad Comprometida</p>
+  <p class="integrity-sub">Datos modificados externamente</p>
+  <button onclick="location.reload()" class="integrity-btn">
+    Recargar y Reconectar
+  </button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     §B  PANTALLA DE LOGIN
+══════════════════════════════════════════════════════════════ -->
+<div id="login-screen" class="no-print" class="flex items-center justify-center min-h-screen bg-emerald-900">
+  <div class="bg-white p-10 rounded-3xl shadow-2xl w-full max-w-sm text-center">
+    <i class="fas fa-scissors text-4xl text-emerald-600 mb-2"></i>
+    <h2 class="text-3xl font-black tracking-tighter uppercase">FABIOLA</h2>
+    <p class="text-micro font-bold text-emerald-600 tracking-[.3em] uppercase mb-8">Peluquería & Estética</p>
+    <input id="loginUser" placeholder="Usuario"
+      class="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl mb-3 text-center font-bold focus:border-emerald-500 outline-none"
+      onkeydown="if(event.key==='Enter')document.getElementById('loginPass').focus()">
+    <input id="loginPass" type="password" placeholder="Contraseña"
+      class="w-full px-4 py-3 border-2 border-slate-100 rounded-2xl mb-4 text-center font-bold focus:border-emerald-500 outline-none"
+      onkeydown="if(event.key==='Enter')app.login()">
+    <button onclick="app.login()"
+      class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-black uppercase shadow-lg transition-all">
+      Iniciar Sesión
+    </button>
+    <p id="loginErr" class="text-red-500 text-micro font-black uppercase mt-3 hidden"></p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     §C  APLICACIÓN PRINCIPAL
+══════════════════════════════════════════════════════════════ -->
+<div id="app-content" class="hidden">
+
+  <!-- NAVEGACIÓN -->
+  <nav class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50 no-print">
+    <div class="flex items-center gap-2">
+      <div class="bg-emerald-600 text-white p-2 rounded-lg"><i class="fas fa-cut"></i></div>
+      <span class="text-xl font-black tracking-tighter">FABIOLA<span class="text-emerald-600">.</span></span>
+    </div>
+
+    <!-- Tabs ADMIN -->
+    <div id="adminNav" class="hidden bg-slate-100 p-1 rounded-xl nav-tabs-scroll">
+      <button id="tabAtencion"    class="px-3 py-2 text-micro font-black uppercase tab-btn" onclick="app.tab('atencion',this)"><i class="fas fa-th-large mr-1"></i>Panel</button>
+      <button id="tabCaja"        class="px-3 py-2 text-micro font-black uppercase tab-btn" onclick="app.tab('caja',this)"><i class="fas fa-cash-register mr-1"></i>Caja</button>
+      <button id="tabStaff"       class="px-3 py-2 text-micro font-black uppercase tab-btn" onclick="app.tab('staff',this)"><i class="fas fa-id-badge mr-1"></i>Staff</button>
+      <button id="tabEstadisticas" class="px-3 py-2 text-micro font-black uppercase tab-btn" onclick="app.tab('estadisticas',this)"><i class="fas fa-chart-bar mr-1"></i>Stats</button>
+      <button id="tabConfig"      class="px-3 py-2 text-micro font-black uppercase tab-btn" onclick="app.tab('config',this)"><i class="fas fa-cog mr-1"></i>Config</button>
+      <button id="tabUsuarios"    class="px-3 py-2 text-micro font-black uppercase tab-btn" onclick="app.tab('usuarios',this)"><i class="fas fa-users-cog"></i></button>
+    </div>
+
+    <!-- Label BARBERO -->
+    <div id="barberoNav" class="hidden items-center gap-2">
+      <div class="bg-emerald-50 border border-emerald-200 px-4 py-2 rounded-xl">
+        <span class="text-micro font-black uppercase text-emerald-700">Vista de Profesional</span>
+      </div>
+    </div>
+
+    <!-- Tabs CAJERO -->
+    <div id="cajeroNav" class="hidden bg-slate-100 p-1 rounded-xl nav-tabs-scroll">
+      <button id="tabCajeroPanel" class="px-3 py-2 text-micro font-black uppercase tab-btn" onclick="app.tab('cajero',this)">
+        <i class="fas fa-list-alt mr-1"></i>Panel
+      </button>
+      <button id="tabCajeroCaja" class="px-3 py-2 text-micro font-black uppercase tab-btn" onclick="app.tab('caja',this)">
+        <i class="fas fa-cash-register mr-1"></i>Caja
+      </button>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <!-- TV Monitor -->
+      <button onclick="app.abrirMonitor()" title="Panel TV"
+        class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-emerald-600 hover:text-white transition-all text-sm">
+        <i class="fas fa-tv"></i>
+      </button>
+      <!-- Usuario actual -->
+      <div class="flex items-center gap-2 bg-slate-50 px-3 py-2 rounded-xl">
+        <div id="navAvatar"
+          class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xs"></div>
+        <span id="navNombre" class="text-micro font-black text-slate-600 uppercase hidden md:block"></span>
+      </div>
+      <!-- Cerrar sesión -->
+      <button onclick="app.logout()"
+        class="w-9 h-9 flex items-center justify-center rounded-full bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-all text-sm">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="p-6 max-w-7xl mx-auto">
+
+    <!-- ───────────────── PANEL DE ATENCIÓN (Admin) ───────────────── -->
+    <div id="t-atencion" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- SECCIÓN DESTACADA: Clientes por Cobrar (pendiente_pago) -->
+      <div id="porCobrarSection" class="hidden lg:col-span-12">
+        <div class="bg-amber-50 border-2 border-amber-400 rounded-3xl p-5">
+          <div class="flex items-center gap-3 mb-4">
+            <i class="fas fa-exclamation-circle text-amber-500 text-xl animate-pulse"></i>
+            <h3 class="font-black text-sm uppercase text-amber-800">💵 Clientes por Cobrar en Caja</h3>
+            <span id="porCobrarCnt" class="ml-auto bg-amber-200 text-amber-800 px-3 py-1 rounded-full text-micro font-black">0</span>
+          </div>
+          <div id="porCobrarList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3"></div>
+        </div>
+      </div>
+      <!-- Columna izquierda -->
+      <div class="lg:col-span-3 space-y-5">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-micro font-black text-slate-400 uppercase mb-3 flex justify-between">Disponibles<i class="fas fa-users text-emerald-500"></i></p>
+          <div id="entryB" class="space-y-2"></div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-micro font-black text-slate-400 uppercase mb-3 flex justify-between">Fila de Turnos<i class="fas fa-sort-amount-down text-emerald-500"></i></p>
+          <div id="listB" class="space-y-2"></div>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-micro font-black text-slate-400 uppercase mb-3 flex items-center gap-2">
+            <i class="fas fa-arrow-right text-emerald-500"></i>Próximo
+          </p>
+          <div id="proximoBarber" class="rounded-2xl p-4 text-center min-h-[70px] flex items-center justify-center">
+            <span class="text-slate-300 text-micro font-black uppercase">Sin turno</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna central -->
+      <div class="lg:col-span-6 space-y-5">
+        <div class="flex justify-between items-center bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+          <h3 class="font-black text-xs uppercase text-emerald-800">Servicios Activos</h3>
+          <button onclick="app.next()"
+            class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-xl text-micro font-black uppercase shadow transition-all">
+            Siguiente <i class="fas fa-arrow-right ml-1"></i>
+          </button>
+        </div>
+        <div id="sillas" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        <!-- Reposo -->
+        <div id="reposoSection" class="hidden">
+          <div class="flex items-center gap-2 bg-purple-50 p-3 rounded-2xl border border-purple-100 mb-3">
+            <i class="fas fa-couch text-purple-500"></i>
+            <h3 class="font-black text-xs uppercase text-purple-800">En Reposo</h3>
+            <span id="reposoCnt" class="ml-auto bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xxs font-black">0</span>
+          </div>
+          <div id="reposoGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
+      </div>
+
+      <!-- Columna derecha: Recepción + Cola -->
+      <div class="lg:col-span-3 space-y-5">
+        <div class="bg-white p-6 rounded-2xl border-2 border-emerald-500 shadow-xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-2 bg-emerald-500 text-white rounded-bl-xl"><i class="fas fa-plus text-xs"></i></div>
+          <p class="text-mini font-black text-slate-400 uppercase mb-4">Recepción</p>
+          <input id="inN" placeholder="Nombre del Cliente"
+            class="w-full p-3 border-2 border-slate-100 rounded-xl text-sm mb-3 focus:border-emerald-500 outline-none font-bold">
+          <select id="inS" onchange="app.price()"
+            class="w-full p-3 border-2 border-slate-100 rounded-xl text-sm mb-3 font-semibold text-slate-600 bg-slate-50"></select>
+          <select id="inTarget"
+            class="w-full p-3 border-2 border-slate-100 rounded-xl text-micro mb-3 font-black bg-emerald-50 uppercase text-emerald-800"></select>
+          <div class="relative mb-4">
+            <span class="absolute left-3 top-3 font-bold text-emerald-600">$</span>
+            <input id="inP" type="number" placeholder="Precio"
+              class="w-full p-3 pl-7 border-2 border-slate-100 rounded-xl text-lg font-black text-slate-800">
+          </div>
+          <button onclick="app.reg()"
+            class="w-full bg-slate-900 hover:bg-emerald-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg transition-all">
+            Agregar Cliente
+          </button>
+        </div>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-micro font-black text-slate-400 uppercase mb-3 flex justify-between">
+            Cola <span id="waitCnt" class="bg-slate-100 px-2 py-0.5 rounded-full">0</span>
+          </p>
+          <div id="cola" class="space-y-3"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────────── CAJA (Admin) ───────────────── -->
+    <div id="t-caja" class="hidden max-w-6xl mx-auto space-y-5">
+      <!-- Pendiente de cobro (enviado por barberos) -->
+      <div id="pendienteSection" class="hidden bg-amber-50 border-2 border-amber-200 rounded-3xl p-5">
+        <div class="flex items-center gap-2 mb-4">
+          <i class="fas fa-clock text-amber-500"></i>
+          <h3 class="font-black text-xs uppercase text-amber-800">Pendiente de Cobro</h3>
+          <span id="pendienteCnt" class="ml-auto bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full text-xxs font-black">0</span>
+        </div>
+        <div id="pendienteList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+      <!-- Totales -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm text-center">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Efectivo Neto</p>
+          <h2 id="totalEfec" class="text-2xl font-black text-emerald-600">$0</h2>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm text-center">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Tarjeta</p>
+          <h2 id="totalTar" class="text-2xl font-black text-slate-800">$0</h2>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm text-center">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Transferencia</p>
+          <h2 id="totalTrans" class="text-2xl font-black text-slate-800">$0</h2>
+        </div>
+        <div class="bg-emerald-600 p-5 rounded-3xl text-center shadow-lg">
+          <p class="text-xxs font-black text-emerald-100 uppercase mb-2">Total Día</p>
+          <h2 id="totalVenta" class="text-2xl font-black text-white">$0</h2>
+        </div>
+      </div>
+      <div class="flex gap-4">
+        <button onclick="app.openM('mGasto')"
+          class="flex-1 bg-white border-2 border-red-100 text-red-600 py-4 rounded-2xl font-black text-xs uppercase hover:bg-red-600 hover:text-white transition-all">
+          <i class="fas fa-minus-circle mr-2"></i>Registrar Gasto
+        </button>
+        <button onclick="app.openM('mCierreCheck')"
+          class="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase hover:bg-emerald-600 transition-all">
+          <i class="fas fa-lock mr-2"></i>Cierre de Caja
+        </button>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white p-6 rounded-3xl border border-slate-200">
+          <p class="text-micro font-black text-slate-400 uppercase mb-4 border-b pb-2">Movimientos del Día</p>
+          <div id="movs" class="divide-y divide-slate-50 overflow-y-auto max-h-96"></div>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-200">
+          <h3 class="font-black text-micro uppercase text-slate-400 border-b pb-2 mb-4">Historial de Cierres</h3>
+          <div class="flex gap-2 mb-4">
+            <input type="date" id="searchDate" class="flex-1 border p-3 rounded-xl text-sm font-bold bg-slate-50">
+            <button onclick="app.buscarCierre()"
+              class="bg-slate-900 text-white px-5 rounded-xl text-micro font-black uppercase">Filtrar</button>
+          </div>
+          <div id="historialCierres" class="space-y-3 max-h-80 overflow-y-auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────────── STAFF ───────────────── -->
+    <div id="t-staff" class="hidden space-y-5">
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 flex flex-wrap gap-4 items-end shadow-sm">
+        <div class="flex-1">
+          <label class="text-micro font-black uppercase block text-slate-400 mb-2">Desde</label>
+          <input type="date" id="fechaDesde" class="w-full border-2 border-slate-50 p-2 text-sm rounded-xl font-bold bg-slate-50">
+        </div>
+        <div class="flex-1">
+          <label class="text-micro font-black uppercase block text-slate-400 mb-2">Hasta</label>
+          <input type="date" id="fechaHasta" class="w-full border-2 border-slate-50 p-2 text-sm rounded-xl font-bold bg-slate-50">
+        </div>
+        <button onclick="app.renderStaff()"
+          class="bg-emerald-600 text-white px-8 py-3 rounded-xl text-micro font-black uppercase shadow">
+          Calcular Comisiones
+        </button>
+      </div>
+      <div id="panelStaff" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+    </div>
+
+    <!-- ───────────────── CONFIG ───────────────── -->
+    <div id="t-config" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8">
+      <!-- Barberos -->
+      <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+        <h3 class="font-black mb-5 uppercase text-xs border-b pb-2 text-emerald-600">Profesionales</h3>
+        <div id="bList" class="space-y-3 mb-5"></div>
+        <!-- Formulario: Barbero + Cuenta vinculada -->
+        <div class="bg-slate-50 p-4 rounded-2xl space-y-3">
+          <p class="text-xxs font-black uppercase text-slate-400">Nuevo Profesional</p>
+          <!-- Foto -->
+          <div class="flex items-center gap-3">
+            <div class="upload-zone w-16 flex-shrink-0" onclick="document.getElementById('photoInput').click()">
+              <img id="photoPreview" class="hidden av64 mx-auto" src="" alt="">
+              <div id="photoPH" class="flex flex-col items-center gap-1">
+                <i class="fas fa-camera text-slate-300 text-xl"></i>
+                <span class="text-nano text-slate-400 font-black uppercase">Foto</span>
+              </div>
+            </div>
+            <input type="file" id="photoInput" accept="image/*" class="hidden" onchange="app.previewPhoto(this)">
+            <div class="flex-1 space-y-2">
+              <input id="nb" placeholder="Nombre completo"
+                class="w-full p-2 bg-white border border-slate-200 rounded-xl outline-none font-bold text-sm">
+              <input id="nc" type="number" placeholder="% Comisión" value="50"
+                class="w-full p-2 bg-white border border-slate-200 rounded-xl outline-none font-bold text-sm text-center">
+            </div>
+          </div>
+          <!-- Cuenta de acceso vinculada -->
+          <div class="border-t border-slate-200 pt-3">
+            <p class="text-nano font-black uppercase text-slate-400 mb-2 flex items-center gap-1">
+              <i class="fas fa-key text-amber-400"></i>Cuenta de Acceso (obligatorio)
+            </p>
+            <input id="nb_user" placeholder="Nombre de usuario (login)"
+              class="w-full p-2 bg-white border border-slate-200 rounded-xl outline-none font-bold text-sm mb-2">
+            <input id="nb_pass" type="password" placeholder="Contraseña"
+              class="w-full p-2 bg-white border border-slate-200 rounded-xl outline-none font-bold text-sm">
+          </div>
+          <button onclick="app.addB()"
+            class="w-full bg-emerald-600 text-white py-3 rounded-xl font-black text-xs uppercase shadow">
+            <i class="fas fa-plus mr-2"></i>Agregar Profesional
+          </button>
+        </div>
+      </div>
+      <!-- Servicios -->
+      <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+        <h3 class="font-black mb-5 uppercase text-xs border-b pb-2 text-emerald-600">Catálogo de Servicios</h3>
+        <div id="sList" class="space-y-3 mb-5"></div>
+        <div class="flex gap-2 bg-slate-50 p-3 rounded-2xl">
+          <input id="ns" placeholder="Nuevo Servicio" class="flex-1 p-2 bg-transparent outline-none font-bold text-sm">
+          <input id="nsp" type="number" placeholder="$" class="w-24 p-2 bg-transparent outline-none font-bold text-sm text-center">
+          <button onclick="app.addS()" class="bg-emerald-600 text-white w-10 h-10 rounded-xl font-black shadow">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────────── GESTIÓN DE USUARIOS (Admin) ───────────────── -->
+    <div id="t-usuarios" class="hidden max-w-4xl mx-auto space-y-5">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-3xl border text-center shadow-sm">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Total Usuarios</p>
+          <h2 id="uTotalCnt" class="text-3xl font-black text-slate-800">0</h2>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border text-center shadow-sm">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Administradores</p>
+          <h2 id="uAdminCnt" class="text-3xl font-black text-emerald-600">0</h2>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border text-center shadow-sm">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Cajeros</p>
+          <h2 id="uCajeroCnt" class="text-3xl font-black text-sky-600">0</h2>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border text-center shadow-sm">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Profesionales</p>
+          <h2 id="uBarberoCnt" class="text-3xl font-black text-blue-600">0</h2>
+        </div>
+      </div>
+      <div class="flex justify-between items-center">
+        <h3 class="font-black uppercase text-xs text-slate-500">Todos los Accesos</h3>
+        <button onclick="app.openUserModal(null)"
+          class="bg-slate-900 text-white px-5 py-2 rounded-xl text-micro font-black uppercase hover:bg-emerald-600 transition-all">
+          <i class="fas fa-plus mr-2"></i>Nuevo Usuario
+        </button>
+      </div>
+      <div id="usersList" class="space-y-3"></div>
+    </div>
+
+    <!-- ───────────────── ESTADÍSTICAS (Solo Admin) ───────────────── -->
+    <div id="t-estadisticas" class="hidden max-w-6xl mx-auto space-y-6">
+      <!-- Filtros de período -->
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="text-micro font-black uppercase text-slate-400">Período:</span>
+        <div class="flex gap-2 bg-slate-100 p-1 rounded-xl">
+          <button onclick="app.filtrarStats('hoy',this)"
+            class="periodo-btn active px-4 py-2 text-micro font-black uppercase rounded-lg bg-slate-900 text-white">Hoy</button>
+          <button onclick="app.filtrarStats('semana',this)"
+            class="periodo-btn px-4 py-2 text-micro font-black uppercase rounded-lg text-slate-600 hover:bg-white">7 Días</button>
+          <button onclick="app.filtrarStats('mes',this)"
+            class="periodo-btn px-4 py-2 text-micro font-black uppercase rounded-lg text-slate-600 hover:bg-white">30 Días</button>
+        </div>
+        <span id="statsPeriodoLabel" class="text-micro text-slate-400 font-bold italic ml-2"></span>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center text-lg">💵</div>
+            <p class="text-micro font-black uppercase text-slate-400">Ticket Promedio</p>
+          </div>
+          <h2 id="kpiTicket" class="text-3xl font-black text-emerald-600">$0</h2>
+          <p id="kpiTicketSub" class="text-xxs text-slate-400 font-bold mt-1">0 servicios</p>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-lg">🏆</div>
+            <p class="text-micro font-black uppercase text-slate-400">Mejor Barbero</p>
+          </div>
+          <h2 id="kpiBarbero" class="text-2xl font-black text-slate-800 uppercase truncate">—</h2>
+          <p id="kpiBarberoSub" class="text-xxs text-slate-400 font-bold mt-1">—</p>
+        </div>
+        <div class="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-lg">✂</div>
+            <p class="text-micro font-black uppercase text-slate-400">Servicio Top</p>
+          </div>
+          <h2 id="kpiServicio" class="text-2xl font-black text-slate-800 uppercase truncate">—</h2>
+          <p id="kpiServicioSub" class="text-xxs text-slate-400 font-bold mt-1">—</p>
+        </div>
+      </div>
+
+      <!-- Resumen de ventas del período -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm text-center">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Total Período</p>
+          <h2 id="statTotal" class="text-2xl font-black text-emerald-600">$0</h2>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm text-center">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Efectivo</p>
+          <h2 id="statEfec" class="text-2xl font-black text-slate-800">$0</h2>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm text-center">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Tarjeta</p>
+          <h2 id="statTar" class="text-2xl font-black text-slate-800">$0</h2>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-100 shadow-sm text-center">
+          <p class="text-xxs font-black text-slate-400 uppercase mb-2">Transferencia</p>
+          <h2 id="statTrans" class="text-2xl font-black text-slate-800">$0</h2>
+        </div>
+      </div>
+
+      <!-- Ranking de Barberos -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <h3 class="font-black text-micro uppercase text-slate-400 mb-4 border-b pb-2">
+          <i class="fas fa-trophy text-amber-400 mr-2"></i>Rendimiento por Profesional
+        </h3>
+        <div id="statBarberList" class="space-y-4"></div>
+      </div>
+
+      <!-- Servicios más solicitados -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <h3 class="font-black text-micro uppercase text-slate-400 mb-4 border-b pb-2">
+          <i class="fas fa-cut text-blue-400 mr-2"></i>Servicios Más Solicitados
+        </h3>
+        <div id="statServicioList" class="space-y-3"></div>
+      </div>
+
+      <!-- Historial de cierres en el período -->
+      <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <h3 class="font-black text-micro uppercase text-slate-400 mb-4 border-b pb-2">
+          <i class="fas fa-history text-emerald-400 mr-2"></i>Desglose de Cierres del Período
+        </h3>
+        <div id="statCierreList" class="space-y-3 max-h-96 overflow-y-auto"></div>
+      </div>
+    </div> -->
+    <div id="t-barbero" class="hidden max-w-4xl mx-auto space-y-6">
+      <!-- Estado en turno -->
+      <div id="miTurnoCard" class="rounded-3xl p-6 border-2 shadow-md"></div>
+      <!-- Mis clientes actuales -->
+      <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-black text-xs uppercase text-slate-500">Mis Clientes Actuales</h3>
+          <span id="misClientesCnt" class="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-xxs font-black">0</span>
+        </div>
+        <div id="misClientes" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <p class="text-slate-300 text-micro font-black uppercase col-span-2 text-center py-6">Sin clientes asignados</p>
+        </div>
+      </div>
+      <!-- Historial del día -->
+      <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-black text-xs uppercase text-slate-500">
+            <i class="fas fa-history mr-2 text-emerald-500"></i>Mi Historial del Día
+          </h3>
+          <div class="bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-xl text-right">
+            <p class="text-nano text-emerald-600 font-black uppercase">Total del día</p>
+            <p id="miTotalDia" class="text-lg font-black text-emerald-700">$0</p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-mini">
+            <thead>
+              <tr class="bg-slate-50 uppercase">
+                <th class="p-3 text-left font-black text-slate-400">Cliente</th>
+                <th class="p-3 text-left font-black text-slate-400">Servicio</th>
+                <th class="p-3 text-right font-black text-slate-400">Precio</th>
+                <th class="p-3 text-center font-black text-slate-400">Estado</th>
+              </tr>
+            </thead>
+            <tbody id="miHistorialBody">
+              <tr><td colspan="4" class="text-center text-slate-300 py-6 font-black uppercase text-micro">Sin servicios hoy</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ───────────────── VISTA DE CAJERO ───────────────── -->
+    <div id="t-cajero" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- Columna izquierda: Recepción + Cola -->
+      <div class="lg:col-span-4 space-y-5">
+        <!-- Recepción -->
+        <div class="bg-white p-6 rounded-2xl border-2 border-sky-400 shadow-xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-2 bg-sky-400 text-white rounded-bl-xl"><i class="fas fa-plus text-xs"></i></div>
+          <p class="text-mini font-black text-slate-400 uppercase mb-4">
+            <i class="fas fa-user-plus mr-2 text-sky-500"></i>Agregar Cliente
+          </p>
+          <input id="cjInN" placeholder="Nombre del Cliente"
+            class="w-full p-3 border-2 border-slate-100 rounded-xl text-sm mb-3 focus:border-sky-400 outline-none font-bold">
+          <select id="cjInS" onchange="app.priceCajero()"
+            class="w-full p-3 border-2 border-slate-100 rounded-xl text-sm mb-3 font-semibold text-slate-600 bg-slate-50"></select>
+          <select id="cjInTarget"
+            class="w-full p-3 border-2 border-slate-100 rounded-xl text-micro mb-3 font-black bg-sky-50 uppercase text-sky-800"></select>
+          <div class="relative mb-4">
+            <span class="absolute left-3 top-3 font-bold text-sky-600">$</span>
+            <input id="cjInP" type="number" placeholder="Precio"
+              class="w-full p-3 pl-7 border-2 border-slate-100 rounded-xl text-lg font-black text-slate-800">
+          </div>
+          <button onclick="app.regCajero()"
+            class="w-full bg-sky-600 hover:bg-sky-700 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-lg transition-all">
+            Agregar a la Fila
+          </button>
+        </div>
+
+        <!-- Cola de espera -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <p class="text-micro font-black text-slate-400 uppercase mb-3 flex justify-between">
+            Cola de Espera <span id="cjWaitCnt" class="bg-slate-100 px-2 py-0.5 rounded-full">0</span>
+          </p>
+          <div id="cjCola" class="space-y-3 max-h-80 overflow-y-auto"></div>
+        </div>
+      </div>
+
+      <!-- Columna central-derecha: Activos + Pendiente -->
+      <div class="lg:col-span-8 space-y-5">
+
+        <!-- Pendiente de cobro (enviado por barberos) -->
+        <div id="cjPendienteSection" class="hidden bg-amber-50 border-2 border-amber-200 rounded-3xl p-5">
+          <div class="flex items-center gap-2 mb-4">
+            <i class="fas fa-clock text-amber-500"></i>
+            <h3 class="font-black text-xs uppercase text-amber-800">Pendiente de Cobro</h3>
+            <span id="cjPendienteCnt" class="ml-auto bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full text-xxs font-black">0</span>
+          </div>
+          <div id="cjPendienteList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+
+        <!-- Servicios en atención -->
+        <div>
+          <div class="flex justify-between items-center bg-sky-50 p-4 rounded-2xl border border-sky-100 mb-4">
+            <h3 class="font-black text-xs uppercase text-sky-800">
+              <i class="fas fa-cut mr-2"></i>Servicios en Atención
+            </h3>
+            <span id="cjActivosCnt" class="bg-sky-100 text-sky-700 px-3 py-1 rounded-full text-xxs font-black">0 activos</span>
+          </div>
+          <div id="cjSillas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="col-span-3 text-center text-slate-300 text-micro font-black uppercase py-8">
+              Sin clientes en atención
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div><!-- /app-content -->
+
+<!-- ══════════════════════════════════════════════════════════════
+     §D  MODALES
+══════════════════════════════════════════════════════════════ -->
+
+<!-- Pago (Admin) -->
+<div id="mPago" class="fixed inset-0 bg-slate-900/95 items-center justify-center z-50 hidden p-4">
+  <div class="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl">
+    <div class="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+      <i class="fas fa-check-double"></i>
+    </div>
+    <h2 id="pTitle" class="text-xl font-black mb-2 uppercase">Finalizar Servicio</h2>
+    <div class="bg-slate-50 p-4 rounded-2xl mb-4">
+      <select id="pBarber" class="w-full p-2 border-none bg-transparent text-sm font-black text-center mb-2 uppercase"></select>
+      <input id="pVal" type="number" class="w-full text-center text-4xl font-black text-emerald-600 bg-transparent outline-none">
+    </div>
+    <select id="pMetodo" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-black mb-4 text-sm uppercase text-slate-600">
+      <option value="EFECTIVO">💵 Efectivo</option>
+      <option value="TARJETA">💳 Tarjeta (Transbank)</option>
+      <option value="TRANSFERENCIA">📱 Transferencia</option>
+    </select>
+    <button onclick="app.pay()" class="w-full bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase hover:bg-emerald-700 transition-all">
+      Cobrar e Imprimir Ticket
+    </button>
+    <button onclick="app.closeM()" class="mt-3 text-slate-400 text-micro font-black uppercase block w-full">Volver</button>
+  </div>
+</div>
+
+<!-- Procesar Pendiente (Admin cobra lo enviado por barbero) -->
+<div id="mProcesarPendiente" class="fixed inset-0 bg-slate-900/95 items-center justify-center z-50 hidden p-4">
+  <div class="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl">
+    <div class="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+      <i class="fas fa-cash-register"></i>
+    </div>
+    <p class="text-xxs font-black uppercase text-amber-600 mb-1">Enviado por barbero</p>
+    <h2 id="ppTitle" class="text-xl font-black mb-1 uppercase">Cobrar Servicio</h2>
+    <p id="ppBarber" class="text-micro text-slate-400 font-black mb-4"></p>
+    <div class="bg-slate-50 p-4 rounded-2xl mb-4">
+      <p class="text-xxs uppercase text-slate-400 font-black mb-1">Precio Final</p>
+      <input id="ppVal" type="number" class="w-full text-center text-4xl font-black text-amber-600 bg-transparent outline-none">
+    </div>
+    <select id="ppMetodo" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-black mb-4 text-sm uppercase text-slate-600">
+      <option value="EFECTIVO">💵 Efectivo</option>
+      <option value="TARJETA">💳 Tarjeta (Transbank)</option>
+      <option value="TRANSFERENCIA">📱 Transferencia</option>
+    </select>
+    <button onclick="app.confirmarPendiente()" class="w-full bg-amber-500 text-white py-4 rounded-2xl font-black uppercase hover:bg-amber-600 transition-all">
+      Confirmar Cobro
+    </button>
+    <button onclick="app.closeM()" class="mt-3 text-slate-400 text-micro font-black uppercase block w-full">Cancelar</button>
+  </div>
+</div>
+
+<!-- Enviar a Caja (Barbero) -->
+<div id="mEnviarCaja" class="fixed inset-0 bg-slate-900/90 items-center justify-center z-50 hidden p-4">
+  <div class="bg-white p-8 rounded-3xl w-full max-w-sm text-center">
+    <i class="fas fa-paper-plane text-3xl text-amber-500 mb-4"></i>
+    <h3 class="font-black text-lg uppercase mb-1">Enviar a Caja</h3>
+    <p id="ecClienteName" class="text-slate-400 text-xs font-bold uppercase mb-5"></p>
+    <div class="bg-slate-50 p-4 rounded-2xl mb-4">
+      <p class="text-xxs uppercase text-slate-400 font-black mb-1">Precio Final del Servicio</p>
+      <div class="relative">
+        <span class="absolute left-3 top-3 font-bold text-emerald-600">$</span>
+        <input id="ecPrecio" type="number" placeholder="0"
+          class="w-full p-3 pl-7 text-2xl font-black text-emerald-700 bg-transparent outline-none">
+      </div>
+    </div>
+    <button onclick="app.confirmarEnviarCaja()"
+      class="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-2xl font-black uppercase shadow-lg transition-all">
+      <i class="fas fa-check mr-2"></i>Confirmar y Enviar a Caja
+    </button>
+    <button onclick="app.closeM()" class="mt-3 text-slate-400 text-micro font-black uppercase block w-full">Cancelar</button>
+  </div>
+</div>
+
+<!-- Re-Asignar -->
+<div id="mReAsignar" class="fixed inset-0 bg-slate-900/90 items-center justify-center z-50 hidden p-4">
+  <div class="bg-white p-8 rounded-3xl w-full max-w-sm text-center">
+    <i class="fas fa-random text-3xl text-emerald-500 mb-4"></i>
+    <h3 class="font-black text-lg uppercase mb-2">Re-Asignar Cliente</h3>
+    <p id="raClienteName" class="text-slate-400 text-xs font-bold uppercase mb-5"></p>
+    <select id="raSelect" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-black mb-4 text-sm uppercase text-slate-700"></select>
+    <button onclick="app.confirmReAsignar()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase mb-3">Confirmar</button>
+    <button onclick="app.closeM()" class="w-full text-slate-400 text-micro font-black uppercase">Cancelar</button>
+  </div>
+</div>
+
+<!-- Retomar -->
+<div id="mRetomar" class="fixed inset-0 bg-slate-900/90 items-center justify-center z-50 hidden p-4">
+  <div class="bg-white p-8 rounded-3xl w-full max-w-sm text-center">
+    <i class="fas fa-play-circle text-3xl text-purple-500 mb-4"></i>
+    <h3 class="font-black text-lg uppercase mb-2">Retomar Cliente</h3>
+    <p id="rtClienteName" class="text-slate-500 text-xs font-bold uppercase mb-5"></p>
+    <select id="rtBarberSelect" class="w-full p-4 border-2 border-slate-100 rounded-2xl font-black mb-4 text-sm uppercase text-slate-700"></select>
+    <button onclick="app.confirmRetomar()" class="w-full bg-purple-600 text-white py-4 rounded-2xl font-black uppercase mb-3">Retomar Servicio</button>
+    <button onclick="app.closeM()" class="w-full text-slate-400 text-micro font-black uppercase">Cancelar</button>
+  </div>
+</div>
+
+<!-- Gasto -->
+<div id="mGasto" class="fixed inset-0 bg-slate-900/90 items-center justify-center z-50 hidden p-4">
+  <div class="bg-white p-8 rounded-3xl w-full max-w-sm">
+    <h3 class="text-center font-black mb-5 uppercase text-xs text-red-500">Registrar Salida de Dinero</h3>
+    <input id="gd" placeholder="Motivo del Gasto" class="w-full border-2 border-slate-50 p-4 mb-3 rounded-2xl text-sm font-bold bg-slate-50">
+    <input id="ga" type="number" placeholder="Monto" class="w-full border-2 border-slate-50 p-4 mb-5 rounded-2xl font-black text-xl bg-slate-50">
+    <button onclick="app.regGasto()" class="w-full bg-red-600 text-white py-4 rounded-2xl font-black uppercase shadow">Confirmar Gasto</button>
+    <button onclick="app.closeM()" class="w-full text-slate-400 text-micro font-black uppercase mt-3">Cancelar</button>
+  </div>
+</div>
+
+<!-- Cierre de Caja -->
+<div id="mCierreCheck" class="fixed inset-0 bg-slate-900/95 items-center justify-center z-50 hidden p-4">
+  <div class="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+    <div class="bg-slate-900 p-5 text-white text-center">
+      <h3 class="font-black text-sm uppercase tracking-widest"><i class="fas fa-calculator mr-2 text-emerald-400"></i>Auditoría de Cierre</h3>
+    </div>
+    <div class="overflow-y-auto flex-1 p-6 space-y-5">
+      <div>
+        <p class="text-xxs font-black uppercase text-slate-400 mb-3">① Recuento Físico</p>
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="text-nano font-black uppercase text-slate-400 block mb-1">💵 Efectivo Real</label>
+            <input id="checkEf" type="number" placeholder="0" oninput="app.calcDiff()"
+              class="w-full bg-slate-50 p-3 rounded-xl font-black text-lg border-2 border-slate-100 focus:border-emerald-400 outline-none">
+          </div>
+          <div>
+            <label class="text-nano font-black uppercase text-slate-400 block mb-1">💳 Tarjeta Real</label>
+            <input id="checkTar" type="number" placeholder="0" oninput="app.calcDiff()"
+              class="w-full bg-slate-50 p-3 rounded-xl font-black text-lg border-2 border-slate-100 focus:border-emerald-400 outline-none">
+          </div>
+          <div>
+            <label class="text-nano font-black uppercase text-slate-400 block mb-1">📱 Transf. Real</label>
+            <input id="checkTrans" type="number" placeholder="0" oninput="app.calcDiff()"
+              class="w-full bg-slate-50 p-3 rounded-xl font-black text-lg border-2 border-slate-100 focus:border-emerald-400 outline-none">
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="text-xxs font-black uppercase text-slate-400 mb-3">② Sistema vs. Real</p>
+        <div class="rounded-2xl overflow-hidden border border-slate-100">
+          <table class="w-full text-mini font-black">
+            <thead class="bg-slate-900 text-white uppercase">
+              <tr>
+                <th class="p-3 text-left">Concepto</th>
+                <th class="p-3 text-right">Sistema</th>
+                <th class="p-3 text-right">Real</th>
+                <th class="p-3 text-right">Diferencia</th>
+              </tr>
+            </thead>
+            <tbody id="auditTable" class="divide-y divide-slate-100"></tbody>
+            <tfoot id="auditFoot" class="bg-slate-50"></tfoot>
+          </table>
+        </div>
+      </div>
+      <div>
+        <p class="text-xxs font-black uppercase text-slate-400 mb-3">③ Por Profesional</p>
+        <div id="auditBarbers" class="space-y-2"></div>
+      </div>
+    </div>
+    <div class="p-5 border-t flex gap-3">
+      <button onclick="app.closeM()" class="flex-1 text-slate-400 text-micro font-black uppercase py-3 rounded-2xl border-2 border-slate-100">Cancelar</button>
+      <button onclick="app.confirmarCierre()" class="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-black uppercase text-xs hover:bg-emerald-700 transition-all">
+        <i class="fas fa-print mr-2"></i>Cerrar y Emitir Reporte
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Usuario Admin (add/edit pure admin) -->
+<div id="mUserModal" class="fixed inset-0 bg-slate-900/90 items-center justify-center z-50 hidden p-4">
+  <div class="bg-white p-8 rounded-3xl w-full max-w-sm">
+    <h3 id="umTitle" class="text-center font-black mb-5 uppercase text-sm text-emerald-600">Nuevo Usuario de Sistema</h3>
+    <input id="umNombre" placeholder="Nombre completo"
+      class="w-full border-2 border-slate-50 p-3 mb-3 rounded-2xl text-sm font-bold bg-slate-50">
+    <input id="umUser" placeholder="Nombre de usuario (login)"
+      class="w-full border-2 border-slate-50 p-3 mb-3 rounded-2xl text-sm font-bold bg-slate-50">
+    <input id="umPass" type="password" placeholder="Contraseña (vacío = sin cambio al editar)"
+      class="w-full border-2 border-slate-50 p-3 mb-3 rounded-2xl text-sm font-bold bg-slate-50">
+    <!-- Selector de rol -->
+    <div class="mb-5">
+      <label class="text-xxs font-black uppercase text-slate-400 block mb-2">Rol del Usuario</label>
+      <select id="umRol" class="w-full border-2 border-slate-100 p-3 rounded-2xl font-black text-sm text-slate-700 bg-slate-50">
+        <option value="admin">🛡 Administrador — Acceso total</option>
+        <option value="cajero" selected>💰 Cajero — Cola y caja solamente</option>
+      </select>
+    </div>
+    <input type="hidden" id="umId">
+    <button onclick="app.saveAdminUser()" class="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase mb-3">Guardar</button>
+    <button onclick="app.closeM()" class="w-full text-slate-400 text-micro font-black uppercase">Cancelar</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     SCRIPT PRINCIPAL
+     Cargado con "defer" para garantizar que el DOM esté listo
+     antes de que _pub.init() arranque la aplicación.
+══════════════════════════════════════════════════════════════ -->
+<!-- app.js usa defer: el DOM ya está listo Y config.js ya inicializó db -->
+<script src="app.js" defer></script>
+
+</body>
+</html>
